@@ -189,6 +189,7 @@
       else {
         state.book.active = true;
         if (coloringModeButton) coloringModeButton.textContent = 'Pause colouring mode';
+        bookBackground.value = state.bookBackground || state.background;
         updateBookTemplateSelection(state.book.template || 'floral');
         app.render();
       }
@@ -589,7 +590,11 @@
       target.fill();
       paths.push(points);
     });
-    target.strokeStyle = '#28263a';
+    const channels = /^#[0-9a-f]{6}$/i.test(background)
+      ? [1, 3, 5].map((offset) => parseInt(background.slice(offset, offset + 2), 16))
+      : [246, 242, 233];
+    const brightness = channels[0] * 0.299 + channels[1] * 0.587 + channels[2] * 0.114;
+    target.strokeStyle = brightness < 145 ? '#f6f2e9' : '#28263a';
     target.lineWidth = 1.45 / scale;
     target.lineJoin = 'round';
     target.lineCap = 'round';
@@ -621,6 +626,8 @@
     state.book = { active: true, name: bookNames[template], template, regions: makeBookRegions(template) };
     state.background = bookBackground.value;
     state.bookBackground = bookBackground.value;
+    const mainBackground = document.getElementById('backgroundColor');
+    if (mainBackground) mainBackground.value = state.background;
     if (coloringModeButton) coloringModeButton.textContent = 'Pause colouring mode';
     removeBookColour = false;
     eraserButton.setAttribute('aria-pressed', 'false');
@@ -1014,6 +1021,7 @@
     beforeGenerate(() => app.generate());
   });
   randomizeButton.title = 'Choose random generation settings, then create a balanced design';
+  action(generateSection, 'Regenerate', () => app.generate());
   action(generateSection, 'Reset settings', () => {
     const defaults = { ringCount: 6, petalCount: 12, complexity: 3, generatorRotation: 0 };
     Object.entries(defaults).forEach(([id, value]) => {
@@ -1107,13 +1115,15 @@
     bookBackground.value = state.bookBackground;
     updateEffectControls();
     updateBookTemplateSelection(state.book?.template || 'floral');
+    syncBookHistoryControls();
   };
 
   const oldColorInput = document.getElementById('color');
   bookColor.value = oldColorInput.value;
   oldColorInput.addEventListener('input', () => { bookColor.value = oldColorInput.value; });
   document.getElementById('backgroundColor').addEventListener('change', () => {
-    bookBackground.value = document.getElementById('backgroundColor').value;
+    state.bookBackground = document.getElementById('backgroundColor').value;
+    bookBackground.value = state.bookBackground;
   });
   const bookButton = document.getElementById('mobile');
   if (bookButton) bookButton.setAttribute('aria-label', 'Open drawing controls');
